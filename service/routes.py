@@ -22,7 +22,6 @@ from service.models import Product, Category
 from service.common import status  # HTTP Status Codes
 from . import app
 
-
 ######################################################################
 # H E A L T H   C H E C K
 ######################################################################
@@ -31,7 +30,6 @@ def healthcheck():
     """Let them know our heart is still beating"""
     return jsonify(status=200, message="OK"), status.HTTP_200_OK
 
-
 ######################################################################
 # H O M E   P A G E
 ######################################################################
@@ -39,7 +37,6 @@ def healthcheck():
 def index():
     """Base URL for our service"""
     return app.send_static_file("index.html")
-
 
 ######################################################################
 #  U T I L I T Y   F U N C T I O N S
@@ -61,7 +58,6 @@ def check_content_type(content_type):
         status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
         f"Content-Type must be {content_type}",
     )
-
 
 ######################################################################
 # C R E A T E   A   N E W   P R O D U C T
@@ -87,16 +83,15 @@ def create_products():
 
     return jsonify(message), status.HTTP_201_CREATED, {"Location": location_url}
 
-
 ######################################################################
-# L I S T   A L L   P R O D U C T S
+# L I S T   A L L   P R O D U C T S (Includes Filtering)
 ######################################################################
 @app.route("/products", methods=["GET"])
 def list_products():
-    """Returns all Products"""
+    """Returns all Products or a filtered list"""
     app.logger.info("Request to list Products...")
+
     products = []
-    
     name = request.args.get("name")
     category = request.args.get("category")
     available = request.args.get("available")
@@ -106,20 +101,21 @@ def list_products():
         products = Product.find_by_name(name)
     elif category:
         app.logger.info("Find by category: %s", category)
+        # Create enum from string
         category_value = getattr(Category, category.upper())
         products = Product.find_by_category(category_value)
     elif available:
-        app.logger.info("Find by availability: %s", available)
-        available_value = available.lower() in ["true", "1", "yes"]
+        app.logger.info("Find by available: %s", available)
+        # Create bool from string
+        available_value = available.lower() in ["true", "yes", "1"]
         products = Product.find_by_availability(available_value)
     else:
         app.logger.info("Find all")
         products = Product.all()
 
     results = [product.serialize() for product in products]
-    app.logger.info("Returning %d products", len(results))
+    app.logger.info("[%d] Products returned", len(results))
     return jsonify(results), status.HTTP_200_OK
-
 
 ######################################################################
 # R E A D   A   P R O D U C T
@@ -128,7 +124,6 @@ def list_products():
 def get_products(product_id):
     """
     Retrieve a single Product
-    This endpoint will return a Product based on it's id
     """
     app.logger.info("Request to Retrieve a product with id [%s]", product_id)
 
@@ -139,15 +134,13 @@ def get_products(product_id):
     app.logger.info("Returning product: %s", product.name)
     return jsonify(product.serialize()), status.HTTP_200_OK
 
-
 ######################################################################
-# U P D A T E   A   P   R O D U C T
+# U P D A T E   A   P R O D U C T
 ######################################################################
 @app.route("/products/<int:product_id>", methods=["PUT"])
 def update_products(product_id):
     """
     Update a Product
-    This endpoint will update a Product based the body that is posted
     """
     app.logger.info("Request to Update a product with id [%s]", product_id)
     check_content_type("application/json")
@@ -163,7 +156,6 @@ def update_products(product_id):
     app.logger.info("Product with id [%s] updated!", product.id)
     return jsonify(product.serialize()), status.HTTP_200_OK
 
-
 ######################################################################
 # D E L E T E   A   P R O D U C T
 ######################################################################
@@ -171,7 +163,6 @@ def update_products(product_id):
 def delete_products(product_id):
     """
     Delete a Product
-    This endpoint will delete a Product based the id specified in the path
     """
     app.logger.info("Request to Delete a product with id [%s]", product_id)
 
