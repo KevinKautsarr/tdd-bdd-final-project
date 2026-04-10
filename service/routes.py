@@ -14,13 +14,11 @@
 # limitations under the License.
 ######################################################################
 
-# spell: ignore Rofrano jsonify restx dbname
 """
 Product Store Service with UI
 """
-from flask import jsonify, request, abort
-from flask import url_for  # noqa: F401 pylint: disable=unused-import
-from service.models import Product
+from flask import jsonify, request, abort, url_for
+from service.models import Product, Category
 from service.common import status  # HTTP Status Codes
 from . import app
 
@@ -85,44 +83,101 @@ def create_products():
     app.logger.info("Product with new id [%s] saved!", product.id)
 
     message = product.serialize()
+    location_url = url_for("get_products", product_id=product.id, _external=True)
 
-    #
-    # Uncomment this line of code once you implement READ A PRODUCT
-    #
-    # location_url = url_for("get_products", product_id=product.id, _external=True)
-    location_url = "/"  # delete once READ is implemented
     return jsonify(message), status.HTTP_201_CREATED, {"Location": location_url}
 
 
 ######################################################################
 # L I S T   A L L   P R O D U C T S
 ######################################################################
+@app.route("/products", methods=["GET"])
+def list_products():
+    """Returns all Products"""
+    app.logger.info("Request to list Products...")
+    products = []
+    
+    name = request.args.get("name")
+    category = request.args.get("category")
+    available = request.args.get("available")
 
-#
-# PLACE YOUR CODE TO LIST ALL PRODUCTS HERE
-#
+    if name:
+        app.logger.info("Find by name: %s", name)
+        products = Product.find_by_name(name)
+    elif category:
+        app.logger.info("Find by category: %s", category)
+        category_value = getattr(Category, category.upper())
+        products = Product.find_by_category(category_value)
+    elif available:
+        app.logger.info("Find by availability: %s", available)
+        available_value = available.lower() in ["true", "1", "yes"]
+        products = Product.find_by_availability(available_value)
+    else:
+        app.logger.info("Find all")
+        products = Product.all()
+
+    results = [product.serialize() for product in products]
+    app.logger.info("Returning %d products", len(results))
+    return jsonify(results), status.HTTP_200_OK
+
 
 ######################################################################
 # R E A D   A   P R O D U C T
 ######################################################################
+@app.route("/products/<int:product_id>", methods=["GET"])
+def get_products(product_id):
+    """
+    Retrieve a single Product
+    This endpoint will return a Product based on it's id
+    """
+    app.logger.info("Request to Retrieve a product with id [%s]", product_id)
 
-#
-# PLACE YOUR CODE HERE TO READ A PRODUCT
-#
+    product = Product.find(product_id)
+    if not product:
+        abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found.")
+
+    app.logger.info("Returning product: %s", product.name)
+    return jsonify(product.serialize()), status.HTTP_200_OK
+
 
 ######################################################################
-# U P D A T E   A   P R O D U C T
+# U P D A T E   A   P   R O D U C T
 ######################################################################
+@app.route("/products/<int:product_id>", methods=["PUT"])
+def update_products(product_id):
+    """
+    Update a Product
+    This endpoint will update a Product based the body that is posted
+    """
+    app.logger.info("Request to Update a product with id [%s]", product_id)
+    check_content_type("application/json")
 
-#
-# PLACE YOUR CODE TO UPDATE A PRODUCT HERE
-#
+    product = Product.find(product_id)
+    if not product:
+        abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found.")
+
+    product.deserialize(request.get_json())
+    product.id = product_id
+    product.update()
+
+    app.logger.info("Product with id [%s] updated!", product.id)
+    return jsonify(product.serialize()), status.HTTP_200_OK
+
 
 ######################################################################
 # D E L E T E   A   P R O D U C T
 ######################################################################
+@app.route("/products/<int:product_id>", methods=["DELETE"])
+def delete_products(product_id):
+    """
+    Delete a Product
+    This endpoint will delete a Product based the id specified in the path
+    """
+    app.logger.info("Request to Delete a product with id [%s]", product_id)
 
+    product = Product.find(product_id)
+    if product:
+        product.delete()
 
-#
-# PLACE YOUR CODE TO DELETE A PRODUCT HERE
-#
+    app.logger.info("Product with id [%s] delete complete!", product_id)
+    return "", status.HTTP_204_NO_CONTENT
